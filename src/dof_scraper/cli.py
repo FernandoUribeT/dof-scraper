@@ -13,6 +13,17 @@ from .sanity import SanityCheckFailed, check
 
 FRONT_PAGE = "https://www.dof.gob.mx/"
 
+#: Stable, machine-readable failure marker written to stderr before exiting.
+#: A caller — a cron job, a CI step, an n8n workflow — should never have to
+#: pattern-match an English error sentence to know what went wrong. The prose
+#: is for humans and may be reworded; this line is the contract.
+FAILURE_MARKER = "dof-scraper: failure kind={kind}"
+
+
+def _report_failure(kind: str, detail: str) -> None:
+    print(FAILURE_MARKER.format(kind=kind), file=sys.stderr)
+    print(f"error: {detail}", file=sys.stderr)
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -47,10 +58,10 @@ def main(argv: list[str] | None = None) -> int:
         else:
             html = fetch(args.url, allow_insecure_tls=args.insecure_tls)
     except InsecureTransportRefused as err:
-        print(f"error: {err}", file=sys.stderr)
+        _report_failure("transport", str(err))
         return 2
     except OSError as err:
-        print(f"error: could not read input: {err}", file=sys.stderr)
+        _report_failure("transport", f"could not read input: {err}")
         return 2
 
     notes = parse_notes(html)
@@ -59,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             check(notes)
         except SanityCheckFailed as err:
-            print(f"error: sanity checks failed: {err}", file=sys.stderr)
+            _report_failure("data", f"sanity checks failed: {err}")
             print("refusing to emit results that should not be trusted.", file=sys.stderr)
             return 3
 
