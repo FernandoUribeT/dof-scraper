@@ -30,13 +30,13 @@ jobs:
     steps:
       # 1. Traer el código del repositorio al runner.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # 2. Instalar uv, el gestor de dependencias que usa este proyecto.
       #    enable-cache reutiliza las dependencias descargadas entre corridas,
       #    para que el pipeline no vuelva a bajar todo cada vez.
       - name: Instalar uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
 
@@ -66,7 +66,7 @@ jobs:
       #    cuando más se necesita el reporte, que es cuando algo falló.
       - name: Publicar reporte de pruebas
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-pruebas-py${{ matrix.python-version }}
           path: reporte-pruebas.xml
