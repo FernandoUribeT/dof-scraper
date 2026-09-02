@@ -1,0 +1,72 @@
+name: tests
+
+# Cuándo corre el pipeline.
+# push: cada vez que subes commits a main.
+# pull_request: cada vez que alguien abre o actualiza un PR contra main.
+# El objetivo es que ningún cambio llegue a main sin que la suite se haya
+# ejecutado antes.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Matriz de versiones: la misma suite se ejecuta una vez por cada versión
+    # de Python listada. pyproject.toml declara requires-python = ">=3.11",
+    # así que se prueba el piso declarado y una versión reciente. Si el código
+    # depende de algo que solo existe en una de las dos, el pipeline lo detecta
+    # aquí y no en la máquina de quien lo instale.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+
+    name: pytest (Python ${{ matrix.python-version }})
+
+    steps:
+      # 1. Traer el código del repositorio al runner.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Instalar uv, el gestor de dependencias que usa este proyecto.
+      #    enable-cache reutiliza las dependencias descargadas entre corridas,
+      #    para que el pipeline no vuelva a bajar todo cada vez.
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # 3. Fijar la versión de Python de esta entrada de la matriz.
+      - name: Instalar Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      # 4. Instalar el proyecto y sus dependencias de desarrollo (pytest).
+      #    --frozen obliga a respetar uv.lock: si el lockfile no coincide con
+      #    pyproject.toml, falla en lugar de resolver versiones distintas a las
+      #    que se probaron en local.
+      - name: Instalar dependencias
+        run: uv sync --frozen --dev
+
+      # 5. Ejecutar la suite.
+      #    -v da el detalle prueba por prueba en el log del pipeline.
+      #    --junitxml genera un reporte en formato estándar, legible por
+      #    herramientas de análisis de resultados.
+      #    Si alguna prueba falla, pytest devuelve un código de salida distinto
+      #    de cero y GitHub Actions marca el pipeline en rojo. Eso es todo el
+      #    mecanismo: el pipeline falla porque el comando falló.
+      - name: Ejecutar pruebas
+        run: uv run pytest -v --junitxml=reporte-pruebas.xml
+
+      # 6. Conservar el reporte aunque las pruebas hayan fallado.
+      #    if: always() es importante: sin él, este paso se saltaría justo
+      #    cuando más se necesita el reporte, que es cuando algo falló.
+      - name: Publicar reporte de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-pruebas-py${{ matrix.python-version }}
+          path: reporte-pruebas.xml

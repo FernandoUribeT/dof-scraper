@@ -1,5 +1,7 @@
 # dof-scraper
 
+[![tests](https://github.com/FernandoUribeT/dof-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/FernandoUribeT/dof-scraper/actions/workflows/tests.yml)
+
 Extracts the documents published each day by Mexico's **Diario Oficial de la Federación**
 (dof.gob.mx) and emits them as JSON.
 
